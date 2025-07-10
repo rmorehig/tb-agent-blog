@@ -1,0 +1,14 @@
+DESCRIPTION >
+    Landing datasource to store blog visit events including page URLs, timestamps, visitor information, and location data
+
+SCHEMA >
+    `timestamp` DateTime `json:$.timestamp`,
+    `page_url` String `json:$.page_url`,
+    `visitor_id` String `json:$.visitor_id`,
+    `user_agent` String `json:$.user_agent`,
+    `ip_address` String `json:$.ip_address`,
+    `country` String `json:$.country`,
+    `city` String `json:$.city`
+
+ENGINE "MergeTree"
+ENGINE_SORTING_KEY "timestamp, country, city"
