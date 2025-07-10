@@ -233,13 +233,22 @@ jobs:
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
+          # Get the PR branch name
+          PR_BRANCH=$(gh pr view ${{ needs.check-mention.outputs.issue_number }} --json headRefName --jq '.headRefName')
+          echo "PR branch: $PR_BRANCH"
+          
+          # Create and switch to the PR branch
+          git checkout -b "$PR_BRANCH" || git checkout "$PR_BRANCH"
+          
           # Clean up temporary files
           rm -f context.json prompt.txt summary.txt tb_output.log
           
           git add .
           git commit -m "Update PR #${{ needs.check-mention.outputs.issue_number }}: ${{ needs.check-mention.outputs.command }}"
-          git push origin HEAD
+          git push origin "$PR_BRANCH"
           echo "updated_pr=true" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create Pull Request
         if: steps.tb_agent.outputs.changes_made == 'true' && needs.check-mention.outputs.is_pr == 'false'
