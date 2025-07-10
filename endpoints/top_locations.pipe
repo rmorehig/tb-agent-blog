@@ -1,0 +1,32 @@
+DESCRIPTION >
+    API endpoint to return the most visited locations with visit counts based on IP address analysis, optionally filtered by date range
+
+NODE top_locations_data
+SQL >
+    %
+    SELECT 
+        multiIf(
+            startsWith(ip_address, '192.168.') OR startsWith(ip_address, '10.') OR startsWith(ip_address, '172.'), 'Local',
+            startsWith(ip_address, '8.8.'), 'US',
+            startsWith(ip_address, '1.1.'), 'Global CDN',
+            startsWith(ip_address, '203.'), 'APAC',
+            startsWith(ip_address, '84.') OR startsWith(ip_address, '85.'), 'Europe',
+            'Unknown'
+        ) as location,
+        count(*) as visits,
+        uniq(visitor_id) as unique_visitors,
+        uniq(ip_address) as unique_ips
+    FROM blog_visits
+    WHERE 1=1
+    {% if defined(start_date) %}
+        AND timestamp >= {{DateTime(start_date)}}
+    {% end %}
+    {% if defined(end_date) %}
+        AND timestamp <= {{DateTime(end_date)}}
+    {% end %}
+    AND ip_address != ''
+    GROUP BY location
+    ORDER BY visits DESC
+    LIMIT {{UInt32(limit, 10)}}
+
+TYPE endpoint
