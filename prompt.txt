@@ -1,0 +1,16 @@
+You are working on repository: rmorehig/tb-agent-blog
+Issue #1: I want to track visits to my blog
+
+Description:
+
+
+Recent Comments:
+@rmorehig: @tb can you do this task?
+
+User Request: can you do this task?
+
+Instructions:
+- Make the requested changes to fix the issue or implement the feature
+- Test changes locally building the project
+- Do not deploy or deploy check, because this will be done by the CI/CD pipeline
+

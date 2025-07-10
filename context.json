@@ -1,0 +1,14 @@
+{
+  "repository": "rmorehig/tb-agent-blog",
+  "issue_number": "1",
+  "issue_title": "I want to track visits to my blog",
+  "issue_body": "",
+  "command": "can you do this task?",
+  "mentioned_files": "",
+  "recent_comments": "@rmorehig: @tb can you do this task?",
+  "tinybird": {
+    "local_host": "http://localhost:7181",
+    "cloud_host": "https://api.europe-west2.gcp.tinybird.co",
+    "has_token": "true"
+  }
+}
