@@ -1,20 +1,0 @@
-
-                  ⋆ Chirping        * Chirping        · Chirping        ✳ Chirping        ⋆ Chirping.       ✺ Chirping.       · Chirping.       ✳ Chirping.       ⋆ Chirping..      ✳ Chirping..      ✦ Chirping..      ✺ Chirping..      * Chirping...     ⋆ Chirping...     ✦ Chirping...     ⋆ Chirping...     * Chirping        ✦ Chirping        ✧ Chirping        ✹ Chirping        ✦ Chirping.       ⋆ Chirping.       ✳ Chirping.       ✹ Chirping.       ✹ Chirping..      ✺ Chirping..      * Chirping..      ✹ Chirping..      ✹ Chirping...     ✺ Chirping...     ⋆ Chirping...     ✳ Chirping...                       Plan description: Add a top_locations endpoint to show most visited locations based on visitor location data.
-
-Steps:
-1. Datasource: blog_visits - Update schema to include location information (country, city, IP address)
-2. Endpoint: top_locations - API endpoint to return the most visited locations with visit counts
-3. Build project
-4. Generate mock data: blog_visits
-                  ✧ Chirping        * Chirping        ✺ Chirping        ✧ Chirping        ✧ Chirping.       ✦ Chirping.       · Chirping.       ⋆ Chirping.       * Chirping..      * Chirping..      ✺ Chirping..      ✧ Chirping..      * Chirping...     ✦ Chirping...     ✳ Chirping...     ⋆ Chirping...     ⋆ Chirping        · Chirping        * Chirping        * Chirping        ✦ Chirping.       ✦ Chirping.       ✺ Chirping.       ✧ Chirping.       * Chirping..      ✳ Chirping..      ✺ Chirping..      ✳ Chirping..      ✹ Chirping...     ✦ Chirping...     ✺ Chirping...     ✺ Chirping...     ✳ Chirping        ✳ Chirping        ✧ Chirping        * Chirping        * Chirping.       ✹ Chirping.       ✧ Chirping.       ✧ Chirping.       * Chirping..      · Chirping..      ✺ Chirping..      · Chirping..      ✺ Chirping...     ✦ Chirping...     ⋆ Chirping...     ✺ Chirping...     · Chirping        ✳ Chirping        ✳ Chirping        * Chirping        ⋆ Chirping.       ✺ Chirping.       · Chirping.       * Chirping.       ✧ Chirping..      ✹ Chirping..      ⋆ Chirping..      * Chirping..      ✹ Chirping...     * Chirping...     ✦ Chirping...     ⋆ Chirping...     ✹ Chirping        · Chirping        ✧ Chirping        ⋆ Chirping        · Chirping.                         ╭──────────────────────────────────────────────────────────────────────────────╮
-│                      datasources/blog_visits.datasource                      │
-│                                                                              │
-│    1     DESCRIPTION >                                                       │
-│    2         Landing datasource to store blog visit events including page UR │
-│          Ls, timestamps, visitor information, and location data              │
-│    3                                                                         │
-│    4     SCHEMA >                                                            │
-│    5         `timestamp` DateTime `json:$.timestamp`,                        │
-│    6         `page_url` String `json:$.page_url`,                            │
-│    7         `visitor_id` String `json:$.visitor_id`,                        │
-│    8         `user_agent` String `json:$.user_agent`,                        │

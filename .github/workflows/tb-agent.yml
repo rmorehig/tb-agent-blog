@@ -85,6 +85,7 @@ jobs:
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ needs.check-mention.outputs.is_pr == 'true' && format('refs/pull/{0}/head', needs.check-mention.outputs.issue_number) || github.ref }}
       
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -226,25 +227,22 @@ jobs:
           fi
       
       - name: Commit and Push Changes
-        if: steps.tb_agent.outputs.changes_made == 'true'
+        if: steps.tb_agent.outputs.changes_made == 'true' && needs.check-mention.outputs.is_pr == 'true'
         id: commit_changes
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
-          if [ "${{ needs.check-mention.outputs.is_pr }}" = "true" ]; then
-            # We're in a PR - commit to the current branch
-            git add .
-            git commit -m "Update PR #${{ needs.check-mention.outputs.issue_number }}: ${{ needs.check-mention.outputs.command }}"
-            git push origin HEAD
-            echo "updated_pr=true" >> $GITHUB_OUTPUT
-          else
-            # We're in an issue - create a new PR
-            echo "updated_pr=false" >> $GITHUB_OUTPUT
-          fi
+          # Clean up temporary files
+          rm -f context.json prompt.txt summary.txt tb_output.log
+          
+          git add .
+          git commit -m "Update PR #${{ needs.check-mention.outputs.issue_number }}: ${{ needs.check-mention.outputs.command }}"
+          git push origin HEAD
+          echo "updated_pr=true" >> $GITHUB_OUTPUT
 
       - name: Create Pull Request
-        if: steps.tb_agent.outputs.changes_made == 'true' && steps.commit_changes.outputs.updated_pr == 'false'
+        if: steps.tb_agent.outputs.changes_made == 'true' && needs.check-mention.outputs.is_pr == 'false'
         id: create_pr
         uses: peter-evans/create-pull-request@v5
         with:
@@ -300,7 +298,7 @@ jobs:
             let message;
             
             if ('${{ steps.tb_agent.outputs.changes_made }}' === 'true') {
-              if ('${{ steps.commit_changes.outputs.updated_pr }}' === 'true') {
+              if ('${{ needs.check-mention.outputs.is_pr }}' === 'true') {
                 message = `✅ I've updated this PR with the requested changes.
                 
                 **Summary of changes:**
