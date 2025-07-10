@@ -13,6 +13,7 @@ concurrency:
 env:
   TB_HOST: ${{ secrets.TB_HOST }}
   TB_TOKEN: ${{ secrets.TB_TOKEN }}
+  TB_AGENT_MODE: true
 
 jobs:
   check-mention:
@@ -97,18 +98,6 @@ jobs:
           
           # Verify installation
           tb --version
-      
-      - name: Wait for Tinybird service
-        run: |
-          echo "Waiting for Tinybird service to be ready..."
-          for i in {1..30}; do
-            if curl -f http://localhost:7181/health; then
-              echo "Tinybird is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
       
       - name: Get issue/PR context
         id: context
