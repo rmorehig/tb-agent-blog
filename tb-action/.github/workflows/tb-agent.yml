@@ -11,8 +11,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}
-  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+  TB_HOST: ${{ secrets.TB_HOST }}
+  TB_TOKEN: ${{ secrets.TB_TOKEN }}
 
 jobs:
   check-mention:
@@ -102,27 +102,6 @@ jobs:
           
           # Verify installation
           tb --version
-          
-          # Configure Tinybird
-          tb auth --token ${{ env.TINYBIRD_TOKEN }} --host ${{ env.TINYBIRD_HOST }}
-      
-      - name: Install TB Agent CLI
-        run: |
-          # Assuming TB is your custom Python CLI
-          # Option 1: Install from pip
-          # pip install tb-agent
-          
-          # Option 2: Install from requirements.txt if it exists
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-          
-          # Option 3: Install from local setup.py
-          # pip install -e .
-          
-          # Option 4: Custom installation
-          # chmod +x scripts/install-tb.sh
-          # ./scripts/install-tb.sh
       
       - name: Wait for Tinybird service
         run: |
@@ -135,16 +114,6 @@ jobs:
             echo "Waiting... ($i/30)"
             sleep 2
           done
-      
-      - name: Initialize Tinybird local environment
-        run: |
-          # Set up local Tinybird for development
-          export TB_HOST=http://localhost:7181
-          
-          # Initialize project if needed
-          if [ -f "tinybird.json" ]; then
-            tb init --local
-          fi
       
       - name: Get issue/PR context
         id: context
@@ -203,11 +172,9 @@ jobs:
         id: tb_agent
         env:
           # Tinybird environment variables
-          TB_HOST: http://localhost:7181
-          TB_TOKEN: ${{ env.TINYBIRD_TOKEN }}
-          TINYBIRD_HOST: ${{ env.TINYBIRD_HOST }}
-          TINYBIRD_TOKEN: ${{ env.TINYBIRD_TOKEN }}
-          
+          TB_TOKEN: ${{ env.TB_TOKEN }}
+          TB_USER_TOKEN: ${{ env.TB_USER_TOKEN }}
+          TB_HOST: ${{ env.TB_HOST }}          
           # GitHub context
           GITHUB_REPOSITORY: ${{ github.repository }}
           ISSUE_NUMBER: ${{ needs.check-mention.outputs.issue_number }}
@@ -225,8 +192,8 @@ jobs:
             "recent_comments": "${{ steps.context.outputs.recent_comments }}",
             "tinybird": {
               "local_host": "http://localhost:7181",
-              "cloud_host": "${{ env.TINYBIRD_HOST }}",
-              "has_token": "${{ env.TINYBIRD_TOKEN != '' }}"
+              "cloud_host": "${{ env.TB_HOST }}",
+              "has_token": "${{ env.TB_TOKEN != '' }}"
             }
           }
           EOF
@@ -244,36 +211,22 @@ jobs:
           
           User Request: ${{ needs.check-mention.outputs.command }}
           
-          Environment:
-          - Tinybird CLI is available via 'tb' command
-          - Local Tinybird instance is running at http://localhost:7181
-          - Cloud Tinybird is configured with proper credentials
-          
           Instructions:
           - Make the requested changes to fix the issue or implement the feature
-          - Use Tinybird CLI commands as needed (tb push, tb sql, etc.)
-          - Test changes locally using the Tinybird instance
-          - Ensure all Tinybird datasources and pipes are valid
-          - Follow existing patterns in the codebase
-          - Add appropriate error handling
-          - Update documentation if needed
+          - Test changes locally building the project
+          - Do not deploy or deploy check, because this will be done by the CI/CD pipeline
+
           EOF
           
           # Run TB agent
           echo "Running TB agent..."
-          tb --context context.json --prompt "$(cat prompt.txt)" > tb_output.log 2>&1 || true
+          tb --token ${{ env.TB_TOKEN }} --host ${{ env.TB_HOST }} --user-token ${{ secrets.TB_USER_TOKEN }} --p "$(cat prompt.txt)" > tb_output.log 2>&1 || true
           
           # Check if any changes were made
           if [[ -n $(git status --porcelain) ]]; then
             echo "changes_made=true" >> $GITHUB_OUTPUT
             echo "TB agent made changes:"
             git status --short
-            
-            # Test Tinybird changes if any .datasource or .pipe files were modified
-            if git status --porcelain | grep -E '\.(datasource|pipe)'; then
-              echo "Testing Tinybird changes..."
-              tb test run || echo "Warning: Some Tinybird tests failed"
-            fi
           else
             echo "changes_made=false" >> $GITHUB_OUTPUT
             echo "No changes were needed"
@@ -287,21 +240,6 @@ jobs:
             cat summary.txt >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
           fi
-      
-      - name: Validate Tinybird changes
-        if: steps.tb_agent.outputs.changes_made == 'true'
-        run: |
-          # Build and validate Tinybird project
-          echo "Building Tinybird project..."
-          tb build
-          
-          # Run tests
-          echo "Running Tinybird tests..."
-          tb test run
-          
-          # Check deployment
-          echo "Checking deployment..."
-          tb --host ${{ env.TINYBIRD_HOST }} --token ${{ env.TINYBIRD_TOKEN }} deploy --check
       
       - name: Create Pull Request
         if: steps.tb_agent.outputs.changes_made == 'true'
