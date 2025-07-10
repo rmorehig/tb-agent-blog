@@ -1,0 +1,407 @@
+name: TB Agent Bot with Tinybird
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+concurrency: 
+  group: tb-agent-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  TINYBIRD_HOST: ${{ secrets.TINYBIRD_HOST }}
+  TINYBIRD_TOKEN: ${{ secrets.TINYBIRD_TOKEN }}
+
+jobs:
+  check-mention:
+    runs-on: ubuntu-latest
+    # Only run if comment contains @tb
+    if: |
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      contains(github.event.comment.body, '@tb')
+    
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+      command: ${{ steps.check.outputs.command }}
+      issue_number: ${{ steps.check.outputs.issue_number }}
+      is_pr: ${{ steps.check.outputs.is_pr }}
+    
+    steps:
+      - name: Check mention and extract command
+        id: check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = context.payload.comment.body;
+            const regex = /@tb\s+(.+?)(?:\n|$)/i;
+            const match = comment.match(regex);
+            
+            if (match) {
+              const command = match[1].trim();
+              console.log(`Found command: ${command}`);
+              
+              // Add reaction to show we're processing
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: context.payload.comment.id,
+                content: 'eyes'
+              });
+              
+              // Determine if this is a PR or issue
+              const isPR = context.payload.issue?.pull_request !== undefined;
+              
+              core.setOutput('should_run', 'true');
+              core.setOutput('command', command);
+              core.setOutput('issue_number', context.payload.issue.number);
+              core.setOutput('is_pr', isPR);
+            } else {
+              core.setOutput('should_run', 'false');
+            }
+
+  run-agent:
+    needs: check-mention
+    if: needs.check-mention.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    
+    # Docker services for Tinybird
+    services:
+      tinybird:
+        image: tinybirdco/tinybird-local:latest
+        ports:
+          - 7181:7181
+        options: >-
+          --health-cmd "curl -f http://localhost:7181/health || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install Tinybird CLI
+        run: |
+          # Install Tinybird CLI
+          curl https://tinybird.co | sh
+          
+          # Verify installation
+          tb --version
+          
+          # Configure Tinybird
+          tb auth --token ${{ env.TINYBIRD_TOKEN }} --host ${{ env.TINYBIRD_HOST }}
+      
+      - name: Install TB Agent CLI
+        run: |
+          # Assuming TB is your custom Python CLI
+          # Option 1: Install from pip
+          # pip install tb-agent
+          
+          # Option 2: Install from requirements.txt if it exists
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          
+          # Option 3: Install from local setup.py
+          # pip install -e .
+          
+          # Option 4: Custom installation
+          # chmod +x scripts/install-tb.sh
+          # ./scripts/install-tb.sh
+      
+      - name: Wait for Tinybird service
+        run: |
+          echo "Waiting for Tinybird service to be ready..."
+          for i in {1..30}; do
+            if curl -f http://localhost:7181/health; then
+              echo "Tinybird is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+      
+      - name: Initialize Tinybird local environment
+        run: |
+          # Set up local Tinybird for development
+          export TB_HOST=http://localhost:7181
+          
+          # Initialize project if needed
+          if [ -f "tinybird.json" ]; then
+            tb init --local
+          fi
+      
+      - name: Get issue/PR context
+        id: context
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ needs.check-mention.outputs.issue_number }};
+            const isPR = ${{ needs.check-mention.outputs.is_pr }};
+            
+            let item;
+            if (isPR) {
+              item = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: issueNumber
+              });
+            } else {
+              item = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber
+              });
+            }
+            
+            const title = item.data.title;
+            const body = item.data.body || '';
+            
+            // Get recent comments for context
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              per_page: 10
+            });
+            
+            const recentComments = comments.data
+              .slice(-5)
+              .filter(c => c.user.login !== 'github-actions[bot]')
+              .map(c => `@${c.user.login}: ${c.body}`)
+              .join('\n\n');
+            
+            // Extract mentioned files
+            const fileRegex = /`([^`]+\.[a-zA-Z]+)`/g;
+            const mentionedFiles = [];
+            let match;
+            while ((match = fileRegex.exec(body + ' ' + '${{ needs.check-mention.outputs.command }}')) !== null) {
+              mentionedFiles.push(match[1]);
+            }
+            
+            core.setOutput('title', title);
+            core.setOutput('body', body);
+            core.setOutput('recent_comments', recentComments);
+            core.setOutput('mentioned_files', mentionedFiles.join(','));
+      
+      - name: Run TB Agent with Tinybird context
+        id: tb_agent
+        env:
+          # Tinybird environment variables
+          TB_HOST: http://localhost:7181
+          TB_TOKEN: ${{ env.TINYBIRD_TOKEN }}
+          TINYBIRD_HOST: ${{ env.TINYBIRD_HOST }}
+          TINYBIRD_TOKEN: ${{ env.TINYBIRD_TOKEN }}
+          
+          # GitHub context
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ needs.check-mention.outputs.issue_number }}
+          USER_COMMAND: ${{ needs.check-mention.outputs.command }}
+        run: |
+          # Create context file for TB agent
+          cat > context.json << EOF
+          {
+            "repository": "${{ github.repository }}",
+            "issue_number": "${{ needs.check-mention.outputs.issue_number }}",
+            "issue_title": "${{ steps.context.outputs.title }}",
+            "issue_body": "${{ steps.context.outputs.body }}",
+            "command": "${{ needs.check-mention.outputs.command }}",
+            "mentioned_files": "${{ steps.context.outputs.mentioned_files }}",
+            "recent_comments": "${{ steps.context.outputs.recent_comments }}",
+            "tinybird": {
+              "local_host": "http://localhost:7181",
+              "cloud_host": "${{ env.TINYBIRD_HOST }}",
+              "has_token": "${{ env.TINYBIRD_TOKEN != '' }}"
+            }
+          }
+          EOF
+          
+          # Create prompt for TB agent
+          cat > prompt.txt << 'EOF'
+          You are working on repository: ${{ github.repository }}
+          Issue #${{ needs.check-mention.outputs.issue_number }}: ${{ steps.context.outputs.title }}
+          
+          Description:
+          ${{ steps.context.outputs.body }}
+          
+          Recent Comments:
+          ${{ steps.context.outputs.recent_comments }}
+          
+          User Request: ${{ needs.check-mention.outputs.command }}
+          
+          Environment:
+          - Tinybird CLI is available via 'tb' command
+          - Local Tinybird instance is running at http://localhost:7181
+          - Cloud Tinybird is configured with proper credentials
+          
+          Instructions:
+          - Make the requested changes to fix the issue or implement the feature
+          - Use Tinybird CLI commands as needed (tb push, tb sql, etc.)
+          - Test changes locally using the Tinybird instance
+          - Ensure all Tinybird datasources and pipes are valid
+          - Follow existing patterns in the codebase
+          - Add appropriate error handling
+          - Update documentation if needed
+          EOF
+          
+          # Run TB agent
+          echo "Running TB agent..."
+          tb --context context.json --prompt "$(cat prompt.txt)" > tb_output.log 2>&1 || true
+          
+          # Check if any changes were made
+          if [[ -n $(git status --porcelain) ]]; then
+            echo "changes_made=true" >> $GITHUB_OUTPUT
+            echo "TB agent made changes:"
+            git status --short
+            
+            # Test Tinybird changes if any .datasource or .pipe files were modified
+            if git status --porcelain | grep -E '\.(datasource|pipe)'; then
+              echo "Testing Tinybird changes..."
+              tb test run || echo "Warning: Some Tinybird tests failed"
+            fi
+          else
+            echo "changes_made=false" >> $GITHUB_OUTPUT
+            echo "No changes were needed"
+          fi
+          
+          # Capture summary from TB output
+          if [ -f tb_output.log ]; then
+            # Extract summary or use first few lines
+            head -n 20 tb_output.log > summary.txt
+            echo "summary<<EOF" >> $GITHUB_OUTPUT
+            cat summary.txt >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Validate Tinybird changes
+        if: steps.tb_agent.outputs.changes_made == 'true'
+        run: |
+          # Build and validate Tinybird project
+          echo "Building Tinybird project..."
+          tb build
+          
+          # Run tests
+          echo "Running Tinybird tests..."
+          tb test run
+          
+          # Check deployment
+          echo "Checking deployment..."
+          tb --host ${{ env.TINYBIRD_HOST }} --token ${{ env.TINYBIRD_TOKEN }} deploy --check
+      
+      - name: Create Pull Request
+        if: steps.tb_agent.outputs.changes_made == 'true'
+        id: create_pr
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: |
+            Fix issue #${{ needs.check-mention.outputs.issue_number }}
+            
+            Command: ${{ needs.check-mention.outputs.command }}
+            
+            Co-authored-by: ${{ github.event.comment.user.login }} <${{ github.event.comment.user.id }}+${{ github.event.comment.user.login }}@users.noreply.github.com>
+          title: "Fix issue #${{ needs.check-mention.outputs.issue_number }}"
+          body: |
+            ## Automated fix for issue #${{ needs.check-mention.outputs.issue_number }}
+            
+            **Triggered by:** @${{ github.event.comment.user.login }}
+            **Command:** `${{ needs.check-mention.outputs.command }}`
+            
+            ### Summary of changes
+            ${{ steps.tb_agent.outputs.summary }}
+            
+            ### Tinybird validation
+            - ✅ Project builds successfully
+            - ✅ Tests pass
+            - ✅ Deployment check passed
+            
+            ### Files changed
+            ```
+            ${{ steps.changed_files.outputs.files }}
+            ```
+            
+            Closes #${{ needs.check-mention.outputs.issue_number }}
+          branch: tb-fix-issue-${{ needs.check-mention.outputs.issue_number }}
+          delete-branch: true
+          labels: |
+            automated
+            tb-agent
+      
+      - name: Get changed files
+        id: changed_files
+        if: steps.tb_agent.outputs.changes_made == 'true'
+        run: |
+          echo "files<<EOF" >> $GITHUB_OUTPUT
+          git diff --name-status >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      
+      - name: Comment on issue
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issueNumber = ${{ needs.check-mention.outputs.issue_number }};
+            const commentId = context.payload.comment.id;
+            let message;
+            
+            if ('${{ steps.tb_agent.outputs.changes_made }}' === 'true') {
+              const prNumber = '${{ steps.create_pr.outputs.pull-request-number }}';
+              message = `✅ I've created PR #${prNumber} to address this issue.
+              
+              **Summary of changes:**
+              ${{ steps.tb_agent.outputs.summary }}
+              
+              The changes have been validated with Tinybird and all tests pass.`;
+              
+              // Add success reaction
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                content: 'rocket'
+              });
+            } else if ('${{ job.status }}' === 'failure') {
+              message = `❌ I encountered an error while processing your request.
+              
+              Please check the [workflow logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for more details.`;
+              
+              // Add confused reaction
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                content: 'confused'
+              });
+            } else {
+              message = `ℹ️ The agent completed successfully but no changes were needed.`;
+              
+              // Add thumbs up reaction
+              await github.rest.reactions.createForIssueComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: commentId,
+                content: '+1'
+              });
+            }
+            
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: message
+            });
