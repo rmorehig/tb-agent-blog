@@ -1,0 +1,20 @@
+
+                  ✺ Chirping        ✧ Chirping        ⋆ Chirping        ⋆ Chirping        ✳ Chirping.       ⋆ Chirping.       ⋆ Chirping.       ✳ Chirping.       ⋆ Chirping..      ✳ Chirping..      ✳ Chirping..      ✳ Chirping..      ✺ Chirping...     ✺ Chirping...     ⋆ Chirping...     ✦ Chirping...     ✺ Chirping        ✺ Chirping        * Chirping        ✹ Chirping        ✧ Chirping.       ✦ Chirping.       ✦ Chirping.       ✳ Chirping.       ✧ Chirping..      ✳ Chirping..      · Chirping..      ✦ Chirping..      ✦ Chirping...                       Plan description: Add a top_locations endpoint to show the most visited locations based on visitor geographic data.
+
+Steps:
+1. Endpoint: top_locations - Returns the most visited locations ordered by visit count from geographic data
+2. Build project
+                  ✦ Chirping        * Chirping        ⋆ Chirping        · Chirping        ✳ Chirping.       * Chirping.       · Chirping.       ⋆ Chirping.       ✺ Chirping..      ✦ Chirping..      · Chirping..      ✹ Chirping..      ✺ Chirping...     ⋆ Chirping...     ✳ Chirping...     ✳ Chirping...     * Chirping        ⋆ Chirping        ✳ Chirping        ✳ Chirping        · Chirping.       ✧ Chirping.       ✹ Chirping.       * Chirping.       ✦ Chirping..      ✦ Chirping..      ✺ Chirping..      * Chirping..      · Chirping...     ✧ Chirping...     ✳ Chirping...     · Chirping...     ✦ Chirping        * Chirping        * Chirping        ✺ Chirping        ✳ Chirping.       ✳ Chirping.       ✹ Chirping.       ✺ Chirping.       ✧ Chirping..      ✹ Chirping..      ✦ Chirping..      * Chirping..      · Chirping...     ⋆ Chirping...     ✧ Chirping...     ✧ Chirping...     * Chirping        ✳ Chirping        * Chirping        ✦ Chirping        ✧ Chirping.       ✦ Chirping.       ✺ Chirping.       ✦ Chirping.       · Chirping..      ✺ Chirping..      ✹ Chirping..      · Chirping..      * Chirping...     ✳ Chirping...     · Chirping...     ✧ Chirping...     ✺ Chirping        ⋆ Chirping        ✳ Chirping        ✧ Chirping        ✹ Chirping.       * Chirping.       · Chirping.       ✺ Chirping.       ✳ Chirping..      ✳ Chirping..      ⋆ Chirping..      ✹ Chirping..      ✺ Chirping...                       ╭──────────────────────────────────────────────────────────────────────────────╮
+│                         endpoints/top_locations.pipe                         │
+│                                                                              │
+│    1     DESCRIPTION >                                                       │
+│    2         Endpoint to return the most visited locations ordered by visit  │
+│          count                                                               │
+│    3                                                                         │
+│    4     NODE top_locations_data                                             │
+│    5     SQL >                                                               │
+│    6         %                                                               │
+│    7         SELECT                                                          │
+│    8             visitor_location,                                           │
+│    9             count(*) as visit_count                                     │
+│   10         FROM blog_visits                                                │
