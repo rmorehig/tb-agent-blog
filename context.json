@@ -1,0 +1,16 @@
+{
+  "repository": "rmorehig/tb-agent-blog",
+  "issue_number": "3",
+  "issue_title": "I want to track visits to my blog",
+  "issue_body": "Create a landing table to store events and a top_pages endpoint to know which are the most visited pages",
+  "command": "can you do this?",
+  "mentioned_files": "",
+  "recent_comments": "@rmorehig: @tb can you do this?
+
+@rmorehig: @tb can you do this?",
+  "tinybird": {
+    "local_host": "http://localhost:7181",
+    "cloud_host": "https://api.europe-west2.gcp.tinybird.co",
+    "has_token": "true"
+  }
+}

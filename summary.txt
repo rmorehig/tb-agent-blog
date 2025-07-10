@@ -1,0 +1,20 @@
+
+                  ✧ Chirping        ⋆ Chirping        ✺ Chirping        ✺ Chirping        · Chirping.       ✦ Chirping.       ✹ Chirping.       * Chirping.       ✺ Chirping..      ✺ Chirping..      · Chirping..      ✺ Chirping..      ✦ Chirping...     * Chirping...     ✦ Chirping...     * Chirping...     ✧ Chirping        ✳ Chirping        * Chirping        * Chirping        · Chirping.       ✹ Chirping.       ⋆ Chirping.       ⋆ Chirping.       ✺ Chirping..      ⋆ Chirping..      ✧ Chirping..      · Chirping..      ✳ Chirping...     · Chirping...     · Chirping...     ✳ Chirping...     ✳ Chirping        ⋆ Chirping        · Chirping                          Plan description: Create a blog visits tracking system with a landing datasource for events and an endpoint to show top visited pages.
+
+Steps:
+1. Datasource: blog_visits - Landing table to store blog visit events with page URL, timestamp, and visitor information
+2. Endpoint: top_pages - API endpoint to return the most visited pages with visit counts
+3. Build project
+4. Generate mock data: blog_visits
+                  ✹ Chirping        ✧ Chirping        ✹ Chirping        · Chirping        * Chirping.       * Chirping.       ✳ Chirping.       ✧ Chirping.       ✧ Chirping..      ✺ Chirping..      ✹ Chirping..      ✹ Chirping..      ✧ Chirping...     ✺ Chirping...     ⋆ Chirping...     ✺ Chirping...     * Chirping        ✺ Chirping        ✦ Chirping        ✺ Chirping        ✦ Chirping.       ✳ Chirping.       ✳ Chirping.       ✹ Chirping.       * Chirping..      ✧ Chirping..      ⋆ Chirping..      ✹ Chirping..      ✹ Chirping...     ✺ Chirping...     ✦ Chirping...     ⋆ Chirping...     * Chirping        ✳ Chirping        ⋆ Chirping        ✦ Chirping        ✦ Chirping.       ✳ Chirping.       * Chirping.       · Chirping.       ✦ Chirping..      · Chirping..      * Chirping..      ✹ Chirping..      ✹ Chirping...     · Chirping...     ✳ Chirping...     ✦ Chirping...     ✧ Chirping        ✧ Chirping        ⋆ Chirping        · Chirping        · Chirping.       · Chirping.       * Chirping.       ✳ Chirping.       · Chirping..      ✧ Chirping..      · Chirping..      * Chirping..      ✹ Chirping...     * Chirping...     ⋆ Chirping...     ✦ Chirping...     · Chirping        ⋆ Chirping        ✳ Chirping        ✹ Chirping                          ╭──────────────────────────────────────────────────────────────────────────────╮
+│                      datasources/blog_visits.datasource                      │
+│                                                                              │
+│    1     DESCRIPTION >                                                       │
+│    2         Landing datasource to store blog visit events including page UR │
+│          Ls, timestamps, and visitor information                             │
+│    3                                                                         │
+│    4     SCHEMA >                                                            │
+│    5         `timestamp` DateTime `json:$.timestamp`,                        │
+│    6         `page_url` String `json:$.page_url`,                            │
+│    7         `visitor_id` String `json:$.visitor_id`,                        │
+│    8         `user_agent` String `json:$.user_agent`,                        │
