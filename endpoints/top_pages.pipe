@@ -1,0 +1,23 @@
+DESCRIPTION >
+    API endpoint to return the most visited pages with visit counts, optionally filtered by date range
+
+NODE top_pages_data
+SQL >
+    %
+    SELECT 
+        page_url,
+        count(*) as visits,
+        uniq(visitor_id) as unique_visitors
+    FROM blog_visits
+    WHERE 1=1
+    {% if defined(start_date) %}
+        AND timestamp >= {{DateTime(start_date)}}
+    {% end %}
+    {% if defined(end_date) %}
+        AND timestamp <= {{DateTime(end_date)}}
+    {% end %}
+    GROUP BY page_url
+    ORDER BY visits DESC
+    LIMIT {{UInt32(limit, 10)}}
+
+TYPE endpoint
