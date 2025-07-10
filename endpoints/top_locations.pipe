@@ -1,0 +1,17 @@
+DESCRIPTION >
+    Endpoint to return the most visited locations ordered by visit count
+
+NODE top_locations_data
+SQL >
+    %
+    SELECT 
+        visitor_location,
+        count(*) as visit_count
+    FROM blog_visits 
+    WHERE visitor_location IS NOT NULL 
+        AND visitor_location != ''
+    GROUP BY visitor_location
+    ORDER BY visit_count DESC
+    LIMIT {{UInt32(limit, 10)}}
+
+TYPE endpoint
